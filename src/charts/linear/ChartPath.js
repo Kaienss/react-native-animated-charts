@@ -66,8 +66,13 @@ function combineConfigs(a, b) {
   return r;
 }
 
-const parse = (data, yRange) => {
-  const { greatestY, smallestY } = findYExtremes(data);
+const parse = (data, yRange,data2) => {
+  var d = data
+  if(data&&data2){
+    d = data.concat(data2)
+  }
+  const { greatestY, smallestY } = findYExtremes(d);
+
   const minY = yRange ? yRange[0] : smallestY.y;
   const maxY = yRange ? yRange[1] : greatestY.y;
   const smallestX = data[0];
@@ -168,9 +173,13 @@ export default function ChartPathProvider({
   if (valuesStore.current == null) {
     valuesStore.current = {
       currData: [],
+      currData2: [],
       curroriginalData: [],
       dataQueue: [],
+      curroriginalData2: [],
+      dataQueue2: [],
       prevData: [],
+      prevData2: [],
     };
   }
 
@@ -188,27 +197,36 @@ export default function ChartPathProvider({
     state,
     setContextValue = () => {},
     providedData = rawData,
-    proceededData,
   } = useContext(ChartContext) || generateValues();
 
   const prevData = useSharedValue(valuesStore.current.prevData, 'prevData');
   const currData = useSharedValue(valuesStore.current.currData, 'currData');
+  const prevData2 = useSharedValue(valuesStore.current.prevData2, 'prevData');
+  const currData2 = useSharedValue(valuesStore.current.currData2, 'currData');
   const curroriginalData = useSharedValue(
     valuesStore.current.curroriginalData,
     'curroriginalData'
+  );
+  const curroriginalData2 = useSharedValue(
+    valuesStore.current.curroriginalData2,
+    'curroriginalData2'
   );
   const hitSlopValue = useSharedValue(hitSlop);
   const hapticsEnabledValue = useSharedValue(hapticsEnabled);
   const [extremes, setExtremes] = useState({});
   const isAnimationInProgress = useSharedValue(false, 'isAnimationInProgress');
 
-  const [data, setData] = useState(providedData);
+  const [data, setData] = useState(providedData[0]);
+  const [data2, setData2] = useState(providedData[1]);
   const dataQueue = useSharedValue(valuesStore.current.dataQueue, 'dataQueue');
+  const dataQueue2 = useSharedValue(valuesStore.current.dataQueue2, 'dataQueue2');
   useEffect(() => {
     if (isAnimationInProgress.value) {
-      dataQueue.value.push(providedData);
+      dataQueue.value.push(providedData[0]);
+      dataQueue2.value.push(providedData[0]);
     } else {
-      setData(providedData);
+      setData(providedData[0]);
+      setData2(providedData[1])
     }
   }, [providedData]);
 
@@ -218,22 +236,31 @@ export default function ChartPathProvider({
     if (!data || !data.points || data.points.length === 0) {
       return;
     }
-    const [parsedData] = parse(data.points, data.yRange);
-    proceededData.value = parsedData;
+    const [parsedData] = parse(data.points, data.yRange,data2.points);
+    const [parsedData2] = parse(data2.points, data2.yRange,data.points);
     const [parsedoriginalData, newExtremes] = parse(
       data.nativePoints || data.points
+    );
+    const [parsedoriginalData2, newExtremes2] = parse(
+      data2.nativePoints || data2.points
     );
     setContextValue(prev => ({ ...prev, ...newExtremes, data }));
     setExtremes(newExtremes);
     if (prevData.value.length !== 0) {
       valuesStore.current.prevData = currData.value;
+      valuesStore.current.prevData2 = currData2.value;
       prevData.value = currData.value;
+      prevData2.value = currData2.value;
       prevSmoothing.value = currSmoothing.value;
       progress.value = 0;
       valuesStore.current.currData = parsedData;
       currData.value = parsedData;
+      valuesStore.current.currData2 = parsedData2;
+      currData2.value = parsedData2;
       valuesStore.current.curroriginalData = parsedoriginalData;
+      valuesStore.current.curroriginalData2 = parsedoriginalData2;
       curroriginalData.value = parsedoriginalData;
+      curroriginalData2.value = parsedoriginalData2;
       currSmoothing.value = data.smoothingFactor || 0;
       isAnimationInProgress.value = true;
       setTimeout(
@@ -242,6 +269,8 @@ export default function ChartPathProvider({
           if (dataQueue.value.length !== 0) {
             setData(dataQueue.value[0]);
             dataQueue.value.shift();
+            setData2(dataQueue2.value[0]);
+            dataQueue2.value.shift();
           }
         },
         timingAnimationConfig.duration === undefined
@@ -257,11 +286,15 @@ export default function ChartPathProvider({
       currSmoothing.value = data.smoothing || 0;
       valuesStore.current.currData = parsedData;
       valuesStore.current.curroriginalData = parsedData;
+      valuesStore.current.curroriginalData2 = parsedData2;
       prevData.value = parsedData;
       currData.value = parsedData;
+      prevData2.value = parsedData2;
+      currData2.value = parsedData2;
       curroriginalData.value = parsedoriginalData;
+      curroriginalData2.value = parsedoriginalData2;
     }
-  }, [data]);
+  }, [data,data2]);
 
   const isStarted = useSharedValue(false, 'isStarted');
 
@@ -272,10 +305,11 @@ export default function ChartPathProvider({
         return;
       }
       if (!isStarted.value) {
-        dotScale.value = withSpring(
-          1,
-          combineConfigs(springDefaultConfig, springConfig)
-        );
+        dotScale.value = 1
+        // withSpring(
+        //   1,
+        //   combineConfigs(springDefaultConfig, springConfig)
+        // );
         pathOpacity.value = withTiming(
           0,
           combineConfigs(timingFeedbackDefaultConfig, timingFeedbackConfig)
@@ -349,10 +383,11 @@ export default function ChartPathProvider({
       state.value = event.state;
       originalX.value = '';
       originalY.value = '';
-      dotScale.value = withSpring(
-        0,
-        combineConfigs(springDefaultConfig, springConfig)
-      );
+      dotScale.value =0
+      //  withSpring(
+      //   0,
+      //   combineConfigs(springDefaultConfig, springConfig)
+      // );
       if (android) {
         pathOpacity.value = 1;
       } else {
@@ -367,10 +402,11 @@ export default function ChartPathProvider({
       state.value = event.state;
       originalX.value = '';
       originalY.value = '';
-      dotScale.value = withSpring(
-        0,
-        combineConfigs(springDefaultConfig, springConfig)
-      );
+      dotScale.value = 0
+      // withSpring(
+      //   0,
+      //   combineConfigs(springDefaultConfig, springConfig)
+      // );
       if (android) {
         pathOpacity.value = 1;
       } else {
@@ -389,10 +425,11 @@ export default function ChartPathProvider({
       state.value = event.state;
       originalX.value = '';
       originalY.value = '';
-      dotScale.value = withSpring(
-        0,
-        combineConfigs(springDefaultConfig, springConfig)
-      );
+      dotScale.value = 0
+      // withSpring(
+      //   0,
+      //   combineConfigs(springDefaultConfig, springConfig)
+      // );
       if (android) {
         pathOpacity.value = 1;
       } else {
@@ -410,10 +447,11 @@ export default function ChartPathProvider({
         return;
       }
       if (!isStarted.value) {
-        dotScale.value = withSpring(
-          1,
-          combineConfigs(springDefaultConfig, springConfig)
-        );
+        dotScale.value = 1
+        // withSpring(
+        //   1,
+        //   combineConfigs(springDefaultConfig, springConfig)
+        // );
         pathOpacity.value = withTiming(
           0,
           combineConfigs(timingFeedbackDefaultConfig, timingFeedbackConfig)
@@ -502,6 +540,7 @@ export default function ChartPathProvider({
       {...{
         children,
         currData,
+        currData2,
         currSmoothing,
         data,
         dotStyle,
@@ -512,6 +551,7 @@ export default function ChartPathProvider({
         originalY,
         pathOpacity,
         prevData,
+        prevData2,
         prevSmoothing,
         progress,
         smoothingStrategy,
@@ -537,6 +577,8 @@ function ChartPath({
   onLongPressGestureEvent,
   prevData,
   currData,
+  prevData2,
+  currData2,
   smoothingStrategy,
   prevSmoothing,
   currSmoothing,
@@ -658,6 +700,108 @@ function ChartPath({
       .replace('L', 'M');
   });
 
+  const path2 = useDerivedValue(() => {
+    let fromValue = prevData2.value;
+    let toValue = currData2.value;
+    let res;
+    let smoothing = 0;
+    const strategy = smoothingStrategy.value;
+    if (progress.value !== 1) {
+      const numOfPoints = Math.round(
+        fromValue.length +
+          (toValue.length - fromValue.length) *
+            Math.min(progress.value, 0.5) *
+            2
+      );
+      if (fromValue.length !== numOfPoints) {
+        const mappedFrom = [];
+        const coef = (fromValue.length - 1) / (numOfPoints - 1);
+        for (let i = 0; i < numOfPoints; i++) {
+          mappedFrom.push(fromValue[Math.round(i * coef)]);
+        }
+        fromValue = mappedFrom;
+      }
+
+      if (toValue.length !== numOfPoints) {
+        const mappedTo = [];
+        const coef = (toValue.length - 1) / (numOfPoints - 1);
+
+        for (let i = 0; i < numOfPoints; i++) {
+          mappedTo.push(toValue[Math.round(i * coef)]);
+        }
+        toValue = mappedTo;
+      }
+
+      if (!smoothingWhileTransitioningEnabledValue.value) {
+        if (prevSmoothing.value > currSmoothing.value) {
+          smoothing =
+            prevSmoothing.value +
+            Math.min(progress.value * 5, 1) *
+              (currSmoothing.value - prevSmoothing.value);
+        } else {
+          smoothing =
+            prevSmoothing.value +
+            Math.max(Math.min((progress.value - 0.7) * 4, 1), 0) *
+              (currSmoothing.value - prevSmoothing.value);
+        }
+      }
+
+      res = fromValue.map(({ x, y }, i) => {
+        const { x: nX, y: nY } = toValue[i];
+        const mX = (x + (nX - x) * progress.value) * layoutSize.value.width;
+        const mY = (y + (nY - y) * progress.value) * layoutSize.value.height;
+        return { x: mX, y: mY };
+      });
+    } else {
+      smoothing = currSmoothing.value;
+      res = toValue.map(({ x, y }) => {
+        return {
+          x: x * layoutSize.value.width,
+          y: y * layoutSize.value.height,
+        };
+      });
+    }
+
+    // For som reason isNaN(y) does not work
+    res = res.filter(({ y }) => y === Number(y));
+
+    if (res.length !== 0) {
+      const firstValue = res[0];
+      const lastValue = res[res.length - 1];
+      if (firstValue.x === 0 && strategy !== 'bezier') {
+        // extrapolate the first points
+        res = [
+          { x: res[0].x, y: res[0].y },
+          { x: -res[4].x, y: res[0].y },
+        ].concat(res);
+      }
+      if (lastValue.x === layoutSize.value.width && strategy !== 'bezier') {
+        // extrapolate the last points
+        res[res.length - 1].x = lastValue.x + 20;
+        if (res.length > 2) {
+          res[res.length - 2].x = res[res.length - 2].x + 10;
+        }
+      }
+    }
+
+    if (
+      (smoothing !== 0 && (strategy === 'complex' || strategy === 'simple')) ||
+      (strategy === 'bezier' &&
+        (!smoothingWhileTransitioningEnabledValue.value ||
+          progress.value === 1))
+    ) {
+      return svgBezierPath(res, smoothing, strategy);
+    }
+
+    return res
+      .map(({ x, y }) => {
+        return `L ${x} ${y}`;
+      })
+      .join(' ')
+      .replace('L', 'M');
+  });
+
+
   const animatedProps = useAnimatedStyle(() => {
     const props = {
       d: path.value,
@@ -674,18 +818,39 @@ function ChartPath({
     }
     return props;
   }, []);
-
+  const animatedProps2 = useAnimatedStyle(() => {
+    const props = {
+      d: path2.value,
+      strokeWidth:
+        pathOpacity.value *
+          (Number(strokeWidthValue.value) -
+            Number(selectedStrokeWidthValue.value)) +
+        Number(selectedStrokeWidthValue.value),
+    };
+    if (Platform.OS === 'ios') {
+      props.style = {
+        opacity: pathOpacity.value * (1 - selectedOpacity) + selectedOpacity,
+      };
+    }
+    return props;
+  }, []);
   const animatedStyle = useAnimatedStyle(() => {
     return {
       opacity: pathOpacity.value * (1 - selectedOpacity) + selectedOpacity,
     };
   }, undefined);
-
+  const animatedStyle2 = useAnimatedStyle(() => {
+    return {
+      opacity: pathOpacity.value * (1 - selectedOpacity) + selectedOpacity,
+    };
+  }, undefined);
   return (
     <InternalContext.Provider
       value={{
         animatedProps,
+        animatedProps2,
         animatedStyle,
+        animatedStyle2,
         gestureEnabled,
         height,
         longPressGestureHandlerProps,
@@ -704,9 +869,11 @@ export function SvgComponent() {
   const {
     style,
     animatedStyle,
+    animatedStyle2,
     height,
     width,
     animatedProps,
+    animatedProps2,
     props,
     onLongPressGestureEvent,
     gestureEnabled,
@@ -731,6 +898,12 @@ export function SvgComponent() {
             animatedProps={animatedProps}
             {...props}
             style={[style, animatedStyle]}
+          />
+          <AnimatedPath
+            animatedProps={animatedProps2}
+            {...props}
+            stroke='#FFC542'
+            style={[style, animatedStyle2]}
           />
         </Svg>
       </Animated.View>

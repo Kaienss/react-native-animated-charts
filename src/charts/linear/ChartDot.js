@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import Animated from 'react-native-reanimated';
+import pxToDp from '../../../../../../components/pxToDp';
 
 import ChartContext from '../../helpers/ChartContext';
 import withReanimatedFallback from '../../helpers/withReanimatedFallback';
@@ -23,7 +24,23 @@ function ChartDot({ style, size = 10, ...props }) {
         },
         style,
       ]}
-    />
+    >
+      <Animated.View
+        style={
+          {
+            height: 999,
+            position: 'absolute',
+            top: -size / 2,
+            right: size / 2,
+            borderColor:'rgba(200, 200, 200, 0.8)',
+            borderStyle:'dashed',
+            borderRadius:1,
+            borderWidth:pxToDp(0.6),
+          }
+        }
+      />
+
+    </Animated.View>
   );
 }
 
